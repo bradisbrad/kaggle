@@ -1,0 +1,71 @@
+---
+title: "Tabular Playground - Feb. 2021"
+author: "Brad Hill"
+date: "2/20/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Intro  
+
+What are we doing here? This [project](https://www.kaggle.com/c/tabular-playground-series-feb-2021/overview) is kind of an intro to Kaggle project that rewards top submissions with Kaggle merch. I don't know what I'm doing, but I want merch. So let's load some libraries and read data in.
+
+### Load Libraries
+```{r message = F}
+library(tidyverse)
+library(here)
+library(rsample)
+library(kknn)
+library(GGally)
+library(prcomp)
+```
+
+```{r cache=T, message = F}
+train <- read_csv(here('tabular_playground_feb21/data/train.csv'))
+```
+
+```{r echo=F}
+train[1:5, c(1:4, 20:23, 26)] %>% 
+  knitr::kable()
+```
+
+All categorical variables start with `cat`, all continuous variables start with `cont`, and our response variable lives in `target`. We have a variable called `id` that we want to make sure we don't include in any models because it doesn't actually mean anything.   
+  
+We're also going to want to do cross-validation on this since we already have a test set. Let's use `rsample` to create a cross-validation object, using 10 folds.
+
+```{r}
+train_cv <- vfold_cv(train, v = 10)
+```
+
+
+```{r}
+train %>% 
+  mutate(across(where(is.character), as.factor)) %>% 
+  summary()
+```
+
+```{r echo = F}
+train %>% 
+  mutate(across(where(is.character), as.factor)) %>%
+  sample_n(200) %>% 
+  select(starts_with('cat'), target) %>% 
+  pivot_longer(cols = c(-target)) %>% 
+  ggplot() +
+  geom_boxplot(aes(value, target)) +
+  facet_wrap(~name, scales = 'free')
+```
+
+```{r echo=F}
+train %>% 
+  mutate(across(where(is.character), as.factor)) %>%
+  sample_n(200) %>% 
+  select(starts_with('cont'), target) %>% 
+  pivot_longer(cols = c(-target)) %>% 
+  ggplot() +
+  geom_histogram(aes(value)) +
+  facet_wrap(~name, scales = 'free')
+```
+
