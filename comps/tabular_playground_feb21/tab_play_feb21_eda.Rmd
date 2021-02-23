@@ -16,15 +16,15 @@ What are we doing here? This [project](https://www.kaggle.com/c/tabular-playgrou
 ### Load Libraries
 ```{r message = F}
 library(tidyverse)
+library(tidymodels)
 library(here)
 library(rsample)
 library(kknn)
 library(GGally)
-library(prcomp)
 ```
 
 ```{r cache=T, message = F}
-train <- read_csv(here('tabular_playground_feb21/data/train.csv'))
+train <- read_csv(here('comps/tabular_playground_feb21/data/train.csv'))
 ```
 
 ```{r echo=F}
@@ -67,5 +67,56 @@ train %>%
   ggplot() +
   geom_histogram(aes(value)) +
   facet_wrap(~name, scales = 'free')
+```
+
+```{r}
+xgb_spec <- boost_tree(
+  trees = 1000,
+  tree_depth = tune(),
+  min_n = tune(),
+  loss_reduction = tune(),
+  sample_size = tune(),
+  mtry = tune(),
+  learn_rate = tune()
+) %>% 
+  set_engine('xgboost') %>% 
+  set_mode(mode = 'regression')
+
+xgb_spec
+```
+
+```{r}
+xgb_grid <- grid_latin_hypercube(
+  tree_depth(),
+  min_n(),
+  loss_reduction(),
+  sample_size = sample_prop(),
+  finalize(mtry(), train),
+  learn_rate(),
+  size = 30)
+
+xgb_grid
+```
+
+```{r}
+xgb_wf <- workflow() %>% 
+  add_formula(target ~ . - id) %>% 
+  add_model(xgb_spec)
+
+```
+
+```{r}
+doParallel::registerDoParallel()
+
+set.seed(726)
+xgb_res <- tune_grid(
+  xgb_wf,
+  resamples = train_cv,
+  grid = xgb_grid,
+  control = control_grid(save_pred = T)
+)
+
+xgb_res
+
 ```
 
